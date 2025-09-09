@@ -9,3 +9,5 @@ How does it work?
 - Projects can be "installed" to any directory, but will default to `pto/default-repo`.
 - Projects may contain placeholders in arbitrary files. These will be replaced by user
   defined strings, according to the content of `pto/project-parameters`.
+
+Early Stage Warning: This project is rather un-polished and only works very rudimentary.
