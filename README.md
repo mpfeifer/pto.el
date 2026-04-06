@@ -9,5 +9,8 @@ How does it work?
 - Projects can be "installed" to any directory, but will default to `pto/default-repo`.
 - Projects may contain placeholders in arbitrary files. These will be replaced by user
   defined strings, according to the content of `pto/project-parameters`.
+- Projects may contain a after-copy.el file that is loaded when the project is copied
+  to it's target destination. For example the java helloworld project template has suche
+  a script file, that creats package path directories.  
 
 Early Stage Warning: This project is rather un-polished and only works very rudimentary.
