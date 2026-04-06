@@ -1,4 +1,4 @@
-;;; pto.el --- Project Templates Organizer           -*- lexical-binding: t; -*-
+;;; pto.el --- oject Templates Organizer           -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2025  Matthias Pfeifer
 
@@ -24,37 +24,10 @@
 
 ;;; Code:
 
-(defun replace-in-file (file from to)
-  "Replace text FROM to TO in FILE."
-  (with-current-buffer (find-file-noselect file)
-    (goto-char (point-min))
-    (while (search-forward from (point-max) t)
-      (replace-match to t))
-    (when (buffer-modified-p)
-      (write-file (buffer-file-name)))
-    (kill-buffer)))
-
-(defun pto/replace-parameters (project-directory project-template-name)
-  "Replace parameters in PROJECT-DIRECTORY.
-Assuming project is copied from PROJECT-TEMPLATE-NAME."
-  (let ((parameters (cdr (plist-get pto/project-parameters (intern project-template-name)))))
-    (dolist (param parameters)
-      (let* ((placeholder (nth 0 param))
-	     (prompt (nth 1 param))
-	     (type (nth 2 param))
-	     (description (nth 3 param))
-	     (replacement (read-string prompt)))
-	(dolist (file (directory-files-recursively project-directory ".*"))
-	  (replace-in-file file placeholder replacement))))))
-
 (defgroup pto nil "Customization options for the Project Templates Organizer." :group 'convenience)
 
-(defcustom pto/project-parameters
-  '(thunderbird-add-on (list
-			 ("%NAME%" "What will the name of the add-on be? " 'string "Name of the add-on.")
-			 ("%DESCRIPTION%" "Describe the new add-on: " 'string "Description of the add-on.")
-			 ("%AUTHOR%" "Who is the author of the new add-on? " 'string "Author of the add-on.")))
-  "Parameters for projects in form of a ."
+(defcustom pto/project-parameters nil
+  "Parameters for projects."
   :type 'plist
   :group 'pto)
 
@@ -66,21 +39,64 @@ Assuming project is copied from PROJECT-TEMPLATE-NAME."
   :type 'string
   :group 'pto)
 
+(defcustom pto/after-copy-script "after-copy.el"
+  "Emacs-lisp file to run when new project is started.")
+
+(defun replace-in-file (file from to)
+  "Replace text FROM to TO in FILE."
+  (with-temp-buffer
+    (insert-file-contents file)
+    (goto-char (point-min))
+    (while (search-forward from nil t)
+      (replace-match to t t))
+    (write-region (point-min) (point-max) file)))
+
+(defun pto/process-parameters (project-directory project-template-name)
+  "Replace parameters in PROJECT-DIRECTORY.
+Assuming project is copied from PROJECT-TEMPLATE-NAME."
+  (let ((parameters (plist-get pto/project-parameters (intern (concat ":" project-template-name)))))
+    (dolist (param parameters)
+      (cond
+       ((eq (nth 0 param) :replacement)
+        (let* ((param (cdr param))
+               (placeholder (nth 0 param))
+               (prompt (nth 1 param))
+               (type (nth 2 param))
+               ;;             (description (nth 3 param))
+               )
+          (cond ((eq type :string)
+                 (let ((replacement (read-string prompt)))
+                   (dolist (file (directory-files-recursively project-directory ".*"))
+                     (replace-in-file file placeholder replacement))))
+                ((eq type :list)
+                 (progn
+                   (let* ((options (nth 3 param))
+                          (replacement (completing-read prompt options)))
+                     (dolist (file (directory-files-recursively project-directory ".*"))
+                       (replace-in-file file placeholder replacement))))))))))))
+
 (defun pto/start-new-project (project-template project-repo installed-name)
   "Start a new project from PROJECT-TEMPLATE.  Start project in PROJECT-REPO.
 Project will be installed as INSTALLED-NAME."
   (interactive (list
-		(expand-file-name
-		 (read-directory-name "Select template: "
-				      (file-name-as-directory pto/templates-directory)
-				      (file-name-as-directory pto/templates-directory) t))
-		(expand-file-name
-		 (read-directory-name "Select projects repo: "
-				      (file-name-as-directory pto/default-repo)
-				      (file-name-as-directory pto/default-repo) t))
-		(read-string "Name of the installed project (directory name)? ")))
+                (expand-file-name
+                 (read-directory-name "Select template: "
+                                      (file-name-as-directory pto/templates-directory)
+                                      (file-name-as-directory pto/templates-directory) t))
+                (expand-file-name
+                 (read-directory-name "Select projects repo: "
+                                      (file-name-as-directory pto/default-repo)
+                                      (file-name-as-directory pto/default-repo) t))
+                (read-string "Directory name for the new project? ")))
   (copy-directory project-template (concat project-repo installed-name))
-  (pto/replace-parameters (concat project-repo "/" installed-name) (nth 1 (reverse (file-name-split project-template)))))
+  
+  (pto/process-parameters (concat project-repo "/" installed-name)
+                          (nth 1 (reverse (file-name-split project-template))))
+  (let ((default-directory (concat project-repo "/" installed-name)))
+    (when (file-exists-p pto/after-copy-script)
+      (load-file pto/after-copy-script)
+      (delete-file pto/after-copy-script)
+      (delete-file (concat pto/after-copy-script "c" )))))
 
 (provide 'pto)
 
