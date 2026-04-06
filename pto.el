@@ -26,7 +26,21 @@
 
 (defgroup pto nil "Customization options for the Project Templates Organizer." :group 'convenience)
 
-(defcustom pto/project-parameters nil
+(defcustom pto/project-parameters
+  '(
+    :HelloWorld-Java
+    ((:replacement "%JAVA_VERSION%"
+                   "Which java version will be used? " :list
+                   ("13" "15" "17" "21" "23" "25"))
+     (:replacement "%PACKAGE%" "Package: " :string
+                   "The package that is used for this project.")
+     (:replacement "%ARTIFACTID%" "Artifact id: " :string
+                   "The artifact is generally the name by which the project is known. Tha packaged file is named after the artifact id.")
+     (:replacement "%DESCRIPTION%" "Description of the project: "
+                   :string
+                   "Provide a short description of this project. ")
+     (:replacement "%NAME%" "Name of this project: " :string
+                   "The name is an optional human-readable display name.")))
   "Parameters for projects."
   :type 'plist
   :group 'pto)
@@ -40,7 +54,9 @@
   :group 'pto)
 
 (defcustom pto/after-copy-script "after-copy.el"
-  "Emacs-lisp file to run when new project is started.")
+  "Emacs-lisp file to run when new project is started."
+  :type 'string
+  'group 'pto)
 
 (defun replace-in-file (file from to)
   "Replace text FROM to TO in FILE."
